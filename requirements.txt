@@ -1,0 +1,13 @@
+# ============================================================================
+# Requirements for the City of Cape Town DE Code Challenge
+# Install with:  pip3 install -r requirements.txt
+# ============================================================================
+
+boto3          # AWS SDK - S3 access and the S3 SELECT command (Task 1)
+pandas         # dataframes - reading/transforming the service request data
+geopandas      # geospatial dataframes - handling H3 hexagon polygons (GeoJSON)
+shapely        # geometry operations - points, polygons, centroids (Task 5)
+h3             # Uber's H3 spatial index - level-8 hexagon indexing (Tasks 1 & 2)
+pyproj         # coordinate reference system transforms - accurate centroids/distances
+requests       # HTTP client - downloading external data (wind data in Task 5)
+pytest         # testing framework - unit and integration tests

@@ -1,0 +1,20 @@
+{
+  "dataset": "city-hex-polygons-8-10.geojson (resolution 8 subset)",
+  "description": "Expected schema and value constraints for a single H3 resolution-8 hexagon feature. Used by task1_extraction.py to compute a data-quality conformance score.",
+
+  "required_properties": {
+    "index": "string",
+    "centroid_lat": "number",
+    "centroid_lon": "number",
+    "resolution": "number"
+  },
+
+  "constraints": {
+    "resolution_expected_value": 8,
+    "centroid_lat_range": [-35.0, -33.0],
+    "centroid_lon_range": [18.0, 19.5],
+    "index_prefix": "88"
+  },
+
+  "conformance_threshold": 0.95
+}

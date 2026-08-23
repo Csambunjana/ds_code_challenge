@@ -1,0 +1,16 @@
+# secrets / creds
+*creds*.json
+.env
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# data & logs (large / generated)
+data/
+logs/
+
+# os/editor
+.DS_Store
+.notebook/

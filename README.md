@@ -107,6 +107,34 @@ Please also add an additional validation that checks conformance to a reasonable
 
 Please log the time taken to perform the operations described as well as the validation steps, and within reason, try to optimise latency and computational resources used. Please also note the comments above about the nature of the code that we expect.
 
+### TESTING My work
+# Solution — Data Engineering (City of Cape Town Code Challenge)
+
+## Setup
+Install dependencies:
+
+    pip3 install -r requirements.txt
+
+Configure AWS credentials for the challenge bucket as a profile named `cct`:
+
+    aws configure set aws_access_key_id <KEY> --profile cct
+    aws configure set aws_secret_access_key <SECRET> --profile cct
+    aws configure set region af-south-1 --profile cct
+
+## Task 1 — Data Extraction (S3 SELECT)
+Reads H3 resolution-8 hexagons from `city-hex-polygons-8-10.geojson` using AWS
+S3 SELECT, validates against `city-hex-polygons-8.geojson`, and computes a
+schema conformance score (schema in `conf/schema.json`, documented in
+`conf/README.md`).
+
+    python3 src/task1_extraction.py
+
+## Tests
+
+    python3 -m pytest tests/ -v
+
+
+
 ### 2. Initial Data Transformation (if applying for a Data Engineering, Visualisation Engineer, Front End Developer and/or Science Position)
 Join the equivalent of the contents of the file `city-hex-polygons-8.geojson` to the service request dataset, such that each service request is assigned to a single H3 resolution level 8 hexagon. Use the `sr_hex.csv.gz` file to validate your work.
 
