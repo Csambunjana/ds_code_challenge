@@ -133,8 +133,20 @@ in-process analytical database (a single local file).
 `fact_service_requests` / `dim_hexagons` / `atlantis_wind_sample`, and six
 `vw_*` reporting views that BI tools (Power BI, Tableau, Metabase) connect to.
 
+**Incremental loading (upsert).** Each table has a primary key
+(`notification_number`, or `index` for the hexagons) and the loader uses
+`INSERT ... ON CONFLICT (key) DO UPDATE` with `CREATE TABLE IF NOT EXISTS`.
+Re-running upserts changed rows in place and inserts new ones — so a source
+record update propagates without rebuilding the table (running twice shows
+`0 inserted / all updated`, with unchanged row counts).
+
+**Type decisions.** `notification_number` / `reference_number` are kept as
+`VARCHAR` because they contain leading zeros (forcing an integer would corrupt
+the identifier); `creation_timestamp` / `completion_timestamp` are `TIMESTAMPTZ`
+(they carry a timezone offset); coordinates are `DOUBLE`.
+
 ```bash
-python3 src/task6_duckdb_warehouse.py    # build the warehouse tables
+python3 src/task6_duckdb_warehouse.py    # build/refresh the warehouse (incremental upsert)
 python3 src/task7_reporting_views.py     # create the reporting views
 ```
 

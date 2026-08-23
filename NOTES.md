@@ -152,6 +152,30 @@ layer fully self-contained and reproducible, which fits a public repo perfectly.
     `vw_completion_time_by_directorate`, `vw_requests_by_suburb`,
     `vw_requests_by_month`, `vw_atlantis_wind_bands`.
 
+**Incremental loading (upsert), not full reload.** Each table has a PRIMARY KEY
+(`fact_service_requests` and `atlantis_wind_sample` on `notification_number`,
+`dim_hexagons` on `index`), and the loader uses DuckDB's
+`INSERT ... ON CONFLICT (key) DO UPDATE` (an upsert / MERGE). Tables are created
+with `CREATE TABLE IF NOT EXISTS` so data persists across runs. This means:
+- **If a source record is updated**, re-running the loader upserts it — the row
+  is matched on its key and its columns are UPDATEd in place; new records are
+  INSERTed. Nothing is duplicated and the whole table is not rebuilt.
+- Proven by running the loader twice: the first run reports all rows *inserted*,
+  the second run reports *0 inserted / all updated* with unchanged row counts.
+- The `vw_*` views automatically reflect the latest table state — no extra step.
+
+**Type decisions (data-quality reasoning).**
+- `notification_number` and `reference_number` are kept as **VARCHAR** even
+  though they look numeric — they contain **leading zeros** (e.g.
+  `"000400583534"`). Storing them as integers would drop the zeros and corrupt
+  the identifier / break the join to the source. (DuckDB `VARCHAR` is Unicode;
+  there is no `NVARCHAR`.)
+- `creation_timestamp` and `completion_timestamp` are real datetimes with a
+  timezone offset, so they are stored as **TIMESTAMPTZ** (parsed from text
+  before load). This lets completion-time KPIs use date maths directly, with no
+  casting.
+- Coordinates are **DOUBLE**; `resolution` is **BIGINT**.
+
 **Example insights.**
 - Water & Sanitation (~423K) and Energy (~278K) dominate request volume.
 - Completion time varies hugely: Finance ~5 h median vs Human Settlements
@@ -203,3 +227,8 @@ scripts (or open the CLI with `-readonly` as above).
 - **Anonymisation is a privacy/utility trade-off** — 58% of records were
   singletons at ~500 m / 6 h precision, so they were held for manual review
   rather than published.
+- **Incremental loading beats full reload for changing sources** — an upsert
+  (`INSERT ... ON CONFLICT ... DO UPDATE`) touches only new/changed rows, so
+  source updates propagate without rebuilding the table.
+- **Not everything numeric-looking is a number** — `notification_number` has
+  leading zeros, so it must stay `VARCHAR`; forcing an integer would corrupt it.
