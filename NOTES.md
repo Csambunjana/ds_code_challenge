@@ -119,7 +119,78 @@ hexagon, and validate against `sr_hex.csv.gz`.
   runs with no human interaction.
 
 ============================================================================
-## 6. Key Lessons / Decisions (for quick recall)
+## 6. Analysis Layer — DuckDB Warehouse & Reporting Views
+============================================================================
+
+**Why I added this step.** The tasks only required extraction and
+transformation, but I wanted to finish the *entire* ETL/ELT data flow —
+Extract → Transform → Load → Analyse → Serve — by loading the transformed data
+into a data warehouse and exposing it for analysis.
+
+**Why DuckDB (and not Azure Synapse or Redshift).** I considered cloud
+warehouses like Azure Synapse and Amazon Redshift, both of which I could have
+used. The blocker was **access/reproducibility for a public GitHub submission**:
+a cloud warehouse needs an account, credentials, networking and cost, so anyone
+cloning the repo could not simply run it. **DuckDB** is an open-source,
+embedded, in-process analytical database — the whole warehouse is a single
+local file, with no server, no credentials and no cost. That makes the analysis
+layer fully self-contained and reproducible, which fits a public repo perfectly.
+- DuckDB home / downloads: https://duckdb.org/
+- Installation guide: https://duckdb.org/docs/installation/
+- Python API: `pip install duckdb`  (https://pypi.org/project/duckdb/)
+
+**What I built.**
+- Loaded the transformed data into a structured warehouse:
+  - **Database:** `CCT_Database` (a single `.duckdb` file, attached by name)
+  - **Schema:** `CCT_Schema`
+  - **Tables:** `fact_service_requests` (~942K), `dim_hexagons` (3,832),
+    `atlantis_wind_sample` (7,213)
+- Created **6 reporting views** (prefixed `vw_`) that reporting tools point to,
+  so dashboards get a stable interface and a single source of truth for the
+  business logic:
+  - `vw_requests_by_hexagon`, `vw_requests_by_directorate`,
+    `vw_completion_time_by_directorate`, `vw_requests_by_suburb`,
+    `vw_requests_by_month`, `vw_atlantis_wind_bands`.
+
+**Example insights.**
+- Water & Sanitation (~423K) and Energy (~278K) dominate request volume.
+- Completion time varies hugely: Finance ~5 h median vs Human Settlements
+  ~1,208 h (~50 days).
+- Busiest suburbs: Philippi, Gugulethu, Strand.
+- April 2020 dip reflects the COVID-19 hard lockdown.
+- ~9,435 requests have a missing (NaN) directorate — a data-quality note.
+
+**How to run it.**
+```bash
+# 1) build the warehouse tables (downloads + loads the transformed data)
+python3 src/task6_duckdb_warehouse.py
+
+# 2) create the reporting views on top of the tables
+python3 src/task7_reporting_views.py
+```
+
+**How to browse the tables / views (DuckDB CLI, read-only).**
+```bash
+# open the warehouse read-only (how a reporting tool would connect)
+~/.duckdb/cli/latest/duckdb -readonly data/CCT_Database.duckdb
+
+# then, at the DuckDB prompt:
+.mode box
+-- list the reporting views
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'CCT_Schema' AND table_type = 'VIEW';
+-- query a view the way a dashboard tile would
+SELECT * FROM CCT_Database.CCT_Schema.vw_completion_time_by_directorate
+ORDER BY completed_requests DESC LIMIT 5;
+.quit
+```
+Note: DuckDB allows a single writer, so close the CLI before re-running the
+scripts (or open the CLI with `-readonly` as above).
+
+**Files:** `src/task6_duckdb_warehouse.py`, `src/task7_reporting_views.py`.
+
+============================================================================
+## 7. Key Lessons / Decisions (for quick recall)
 ============================================================================
 
 - **S3 SELECT** avoids downloading a 108 MB file — filter at the source.

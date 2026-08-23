@@ -14,6 +14,7 @@ validation and unit tests.
 | **1. Data Extraction** | Read H3 resolution-8 hexagons from the 108 MB `city-hex-polygons-8-10.geojson` using **AWS S3 SELECT** (server-side filtering, no full download). Validate against `city-hex-polygons-8.geojson` and compute a schema conformance score. | 3,832 hexagons extracted; exact match vs ground truth; conformance 1.00 |
 | **2. Initial Data Transformation** | Assign each service request in `sr.csv.gz` to a single H3 resolution-8 hexagon (computed from its lat/lon). Empty coordinates → index `0`. Validate against `sr_hex.csv.gz`; log join failures with a justified threshold. | 941,634 requests; **100% match** vs `sr_hex`; 0 true join failures |
 | **5. Further Data Transformations** | Subsample requests within 1 arc-minute of an Atlantis suburb centroid (computed programmatically), augment with 2020 wind data (resilient fetch), and anonymise (location ~500 m, time ~6 h, PII removed, singletons quarantined). | 7,213 requests subsampled; wind joined 100%; anonymised + review split |
+| **Analysis layer (bonus)** | Load the transformed data into a local **DuckDB** warehouse (`CCT_Database` / `CCT_Schema`) and expose curated `vw_*` views for reporting tools. Completes the full ETL/ELT flow. | 3 tables + 6 reporting views |
 
 ---
 
@@ -26,7 +27,9 @@ ds_code_challenge/
 ├── src/
 │   ├── task1_extraction.py         # Task 1: S3 SELECT extraction + validation + conformance
 │   ├── task2_transformation.py     # Task 2: H3 assignment + join validation
-│   └── task5_transformations.py    # Task 5: subsample + wind augmentation + anonymisation
+│   ├── task5_transformations.py    # Task 5: subsample + wind augmentation + anonymisation
+│   ├── task6_duckdb_warehouse.py   # Analysis layer: load data into DuckDB warehouse
+│   └── task7_reporting_views.py    # Analysis layer: create vw_* reporting views
 ├── tests/
 │   ├── test_task1.py
 │   ├── test_task2.py
@@ -112,6 +115,41 @@ Runs the full 5.1 → 5.2 → 5.3 pipeline:
 Outputs are written to `data/` (`atlantis_subsample.csv`,
 `atlantis_subsample_wind.csv`, `atlantis_anonymised.csv`,
 `atlantis_manual_review.csv`).
+
+### Analysis Layer — DuckDB Warehouse & Reporting Views (bonus)
+
+To finish the entire ETL/ELT flow (Extract → Transform → Load → Analyse →
+Serve), the transformed data is loaded into a local **DuckDB** warehouse and
+exposed through curated reporting views. I considered cloud warehouses such as
+Azure Synapse and Amazon Redshift, but chose **DuckDB** so the analysis layer
+is fully self-contained and reproducible from a public GitHub clone — no
+account, credentials, networking or cost required. DuckDB is an open-source,
+in-process analytical database (a single local file).
+
+- DuckDB downloads / installation: https://duckdb.org/docs/installation/
+- Python API: `pip install duckdb`
+
+**Warehouse structure:** database `CCT_Database`, schema `CCT_Schema`, tables
+`fact_service_requests` / `dim_hexagons` / `atlantis_wind_sample`, and six
+`vw_*` reporting views that BI tools (Power BI, Tableau, Metabase) connect to.
+
+```bash
+python3 src/task6_duckdb_warehouse.py    # build the warehouse tables
+python3 src/task7_reporting_views.py     # create the reporting views
+```
+
+Browse the views the way a reporting tool would (read-only, no write lock):
+
+```bash
+~/.duckdb/cli/latest/duckdb -readonly data/CCT_Database.duckdb
+```
+```sql
+.mode box
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'CCT_Schema' AND table_type = 'VIEW';
+SELECT * FROM CCT_Database.CCT_Schema.vw_completion_time_by_directorate
+ORDER BY completed_requests DESC LIMIT 5;
+```
 
 ### Run the tests
 

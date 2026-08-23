@@ -11,3 +11,4 @@ h3             # Uber's H3 spatial index - level-8 hexagon indexing (Tasks 1 & 2
 pyproj         # coordinate reference system transforms - accurate centroids/distances
 requests       # HTTP client - downloading external data (wind data in Task 5)
 pytest         # testing framework - unit and integration tests
+duckdb         # local analytical warehouse for the analysis layer
